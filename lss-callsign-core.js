@@ -174,7 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.16.9';
+  const CORE_VERSION = '5.17.1';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -3161,7 +3161,7 @@
     }
     #lss-modal {
       background:#fff;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.28);
-      width:900px;max-width:96vw;max-height:90vh;
+      width:900px;max-width:96vw;height:96vh;max-height:96vh;
       display:flex;flex-direction:column;overflow:hidden;
       font-family:system-ui,-apple-system,sans-serif;font-size:14px;
     }
