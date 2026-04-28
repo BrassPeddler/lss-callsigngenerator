@@ -466,17 +466,12 @@
     } catch (_) { return null; }
   }
 
-  async function getVehicleTypeCatalog() {
+  function getVehicleTypeCatalog() {
     if (_vehicleTypeCatalog !== null) return _vehicleTypeCatalog;
-    const data = await apiFetch('/api/vehicle_types');
-    if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length) {
-      _vehicleTypeCatalog = data;
-    } else {
-      try {
-        _vehicleTypeCatalog = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
-      } catch (_) {
-        _vehicleTypeCatalog = {};
-      }
+    try {
+      _vehicleTypeCatalog = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
+    } catch (_) {
+      _vehicleTypeCatalog = {};
     }
     return _vehicleTypeCatalog;
   }
@@ -1147,41 +1142,37 @@
   // CONFIG-MODAL
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async function initAliasTypSelect(ov) {
+  function initAliasTypSelect(ov) {
     const cont = ov.querySelector('#alias-typ-container');
     if (!cont) return;
-    const prevVal = cont.dataset.selectedValue || cont.querySelector('.lss-ss-display')?.dataset.value || '';
-    cont.innerHTML = '<span style="font-size:12px;color:#888;">Lade …</span>';
-    const cat = await getVehicleTypeCatalog();
-    if (!ov.isConnected) return;
+    const cat = getVehicleTypeCatalog();
     const opts = Object.entries(cat)
       .map(([id, v]) => ({ value: id, label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')' }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    cont.innerHTML = '';
     if (!opts.length) return;
+    const prevVal = cont.dataset.selectedValue || cont.querySelector('.lss-ss-display')?.dataset.value || '';
+    cont.innerHTML = '';
     const ss = makeSearchableSelect(cont, 'alias-typ', opts, prevVal, '— Fahrzeugtyp wählen —');
     cont.dataset.selectedValue = prevVal;
     ss.addEventListener('ss-change', e => { cont.dataset.selectedValue = e.detail.value; });
   }
 
-  async function initKzTypSelect(ov) {
+  function initKzTypSelect(ov) {
     const kzTypCont = ov.querySelector('#kz-typ-container');
     if (!kzTypCont) return;
-    // Wert VOR dem Rebuild merken
-    const prevVal = kzTypCont.dataset.selectedValue
-      || kzTypCont.querySelector('.lss-ss-display')?.dataset.value
-      || '';
-    kzTypCont.innerHTML = '<span style="font-size:12px;color:#888;">Lade …</span>';
-    const cat = await getVehicleTypeCatalog();
-    if (!ov.isConnected) return;
+    const cat = getVehicleTypeCatalog();
     const opts = Object.entries(cat)
       .map(([id, v]) => ({
         value: id,
         label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')'
       }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    kzTypCont.innerHTML = '';
     if (!opts.length) return;
+    // Wert VOR dem Rebuild merken
+    const prevVal = kzTypCont.dataset.selectedValue
+      || kzTypCont.querySelector('.lss-ss-display')?.dataset.value
+      || '';
+    kzTypCont.innerHTML = '';
     const ss = makeSearchableSelect(kzTypCont, 'kz-typ', opts, prevVal, '— Fahrzeugtyp wählen —');
     // Wert sofort in dataset schreiben damit kz-add ihn findet
     kzTypCont.dataset.selectedValue = prevVal;
