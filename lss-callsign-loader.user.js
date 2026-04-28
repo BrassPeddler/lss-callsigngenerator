@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Leitstellenspiel – Funkrufnamen-Generator
-// @namespace    https://github.com/BrassPeddler/lss-callsigngenerator
+// @namespace    https://github.com/DEIN_GITHUB_USERNAME/lss-callsign-generator
 // @version      1.0.0
 // @description  Generiert Funkrufnamen nach konfigurierbarem Schema (pro Bundesland & Organisation).
-// @author       BrassPeddler
-// @homepage     https://github.com/BrassPeddler/lss-callsigngenerator
-// @supportURL   https://github.com/BrassPeddler/lss-callsigngenerator/issues
-// @downloadURL  https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-loader.user.js
-// @updateURL    https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-loader.user.js
+// @author       DEIN_GITHUB_USERNAME
+// @homepage     https://github.com/DEIN_GITHUB_USERNAME/lss-callsign-generator
+// @supportURL   https://github.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/issues
+// @downloadURL  https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-loader.user.js
+// @updateURL    https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-loader.user.js
 // @match        https://www.leitstellenspiel.de/*
+// @grant        GM_info
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -25,7 +26,7 @@
 // ==/UserScript==
 
 (function () {
-  const CORE_URL = 'https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-core.js';
+  const CORE_URL = 'https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-core.js';
 
   GM_xmlhttpRequest({
     method: 'GET',
@@ -37,12 +38,12 @@
       }
       try {
         const fn = new Function(
-          'GM_addStyle', 'GM_getValue', 'GM_setValue',
+          'GM_info', 'GM_addStyle', 'GM_getValue', 'GM_setValue',
           'GM_xmlhttpRequest', 'GM_addValueChangeListener', 'unsafeWindow',
           r.responseText
         );
         fn(
-          GM_addStyle, GM_getValue, GM_setValue,
+          GM_info, GM_addStyle, GM_getValue, GM_setValue,
           GM_xmlhttpRequest, GM_addValueChangeListener,
           typeof unsafeWindow !== 'undefined' ? unsafeWindow : window
         );

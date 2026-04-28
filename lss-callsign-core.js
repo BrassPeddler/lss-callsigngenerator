@@ -1,3 +1,4 @@
+// @run-at       document-idle
 // ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1612,6 +1613,10 @@
 
           <!-- HILFE -->
           <div class="lss-tp" id="t-help">
+            <div style="margin-bottom:12px;font-size:12px;color:#888;">
+              <strong style="color:#445;">Leitstellenspiel – Funkrufnamen-Generator</strong>
+              &nbsp;·&nbsp; Version <strong style="color:#1d5f9e;">${esc(GM_info?.script?.version || '–')}</strong>
+            </div>
             <div class="lss-note">
               <strong>Schema-Platzhalter:</strong><br>
               <code>{org}</code> → Organisationskennung (z.B. „Rotkreuz")<br>
