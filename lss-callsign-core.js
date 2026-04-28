@@ -174,7 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.16.7';
+  const CORE_VERSION = '5.16.8';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -763,7 +763,7 @@
   function detectOrgEntry(caption) {
     if (!caption) return null;
     const up = caption.toUpperCase();
-    const keys = Object.keys(cfg.org).sort((a,b) => b.length - a.length);
+    const keys = Object.keys(cfg.org || {}).sort((a,b) => b.length - a.length);
     for (const k of keys) {
       if (up.includes(k.toUpperCase())) return { keyword: k, ...cfg.org[k] };
     }
@@ -2459,7 +2459,7 @@
       return e ? (typeof e === 'string' ? e : (e.caption || e.name || id)) : id;
     };
 
-    if (!Object.keys(cfg.kz).length)
+    if (!Object.keys(cfg.kz || {}).length)
       return '<p style="color:#888;font-size:13px;">Keine Einträge.</p>';
 
     // Filter-Input + Accordion-Gruppen
@@ -2549,7 +2549,7 @@
       btn.addEventListener('click', () => {
         const r = btn.closest('tr');
         delete cfg.kz[r.dataset.bl][r.dataset.typ];
-        if (!Object.keys(cfg.kz[r.dataset.bl]).length) delete cfg.kz[r.dataset.bl];
+        if (!Object.keys(cfg.kz?.[r.dataset.bl] || {}).length) delete cfg.kz[r.dataset.bl];
         saveConfig(cfg);
         ov.querySelector('#kz-tbl').innerHTML = buildKzTable();
         bindKzEvents(ov);
@@ -2936,7 +2936,7 @@
         // Gebäude-IDs die zu diesem Dienst gehören ermitteln
         const relevantBids = new Set(relevant.map(b => String(b.id)));
         // Bestehende Einträge dieses Dienstes entfernen
-        for (const bid of Object.keys(cfg.ilsNr[lid])) {
+        for (const bid of Object.keys(cfg.ilsNr?.[lid] || {})) {
           const b = cacheBuilding.get(bid);
           if (b && (BUILDING_TYPE_DIENST[b.building_type] || null) === dienst) {
             delete cfg.ilsNr[lid][bid];
@@ -2959,7 +2959,7 @@
     });
 
     // Nr-Events
-    Object.keys(cfg.ils).forEach(lid => ['Feuerwehr','Rettung','Polizei','THW'].forEach(d => bindILSNrEvents(ov, lid, d)));
+    Object.keys(cfg.ils || {}).forEach(lid => ['Feuerwehr','Rettung','Polizei','THW'].forEach(d => bindILSNrEvents(ov, lid, d)));
   }
 
   function bindILSNrEvents(ov, lid, dienst) {
