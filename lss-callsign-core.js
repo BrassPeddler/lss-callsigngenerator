@@ -174,7 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.16.8';
+  const CORE_VERSION = '5.16.9';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -3896,6 +3896,9 @@
   }
 
   function init() {
+    // Fahrzeugtyp-Katalog laden (immer, auch im Hauptfenster)
+    ensureVehicleTypes();
+
     // Iframe-Kontext: /vehicles/<id>/edit, /buildings/<id>/edit, oder /buildings/<id>
     if (window !== window.top) {
       // Gebäude-Übersicht (Tabs) — URL ohne /edit
@@ -3916,9 +3919,6 @@
         }
         return;
       }
-
-      // Fahrzeugtyp-Katalog laden
-      ensureVehicleTypes();
 
       // Bearbeitungs-Formulare
       document.querySelectorAll(SEL_FORM).forEach(handleForm);
