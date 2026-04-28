@@ -429,6 +429,7 @@
   const cacheBuilding = new Map();
   const cacheBL = new Map();
   const cacheOrt = new Map(); // buildingId → Ortsname aus Nominatim
+  let _vehicleTypeCatalog = null;
 
   // Persistenten Geo-Cache laden
   (function loadGeoCache() {
@@ -463,6 +464,21 @@
       if (!r.ok) return null;
       return r.json();
     } catch (_) { return null; }
+  }
+
+  async function getVehicleTypeCatalog() {
+    if (_vehicleTypeCatalog !== null) return _vehicleTypeCatalog;
+    const data = await apiFetch('/api/vehicle_types');
+    if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length) {
+      _vehicleTypeCatalog = data;
+    } else {
+      try {
+        _vehicleTypeCatalog = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
+      } catch (_) {
+        _vehicleTypeCatalog = {};
+      }
+    }
+    return _vehicleTypeCatalog;
   }
 
   async function getVehicle(id) {
@@ -1131,43 +1147,41 @@
   // CONFIG-MODAL
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function initAliasTypSelect(ov) {
-    let cat = {};
-    try { cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}'); } catch(_) {}
+  async function initAliasTypSelect(ov) {
+    const cont = ov.querySelector('#alias-typ-container');
+    if (!cont) return;
+    const prevVal = cont.dataset.selectedValue || cont.querySelector('.lss-ss-display')?.dataset.value || '';
+    cont.innerHTML = '<span style="font-size:12px;color:#888;">Lade …</span>';
+    const cat = await getVehicleTypeCatalog();
+    if (!ov.isConnected) return;
     const opts = Object.entries(cat)
       .map(([id, v]) => ({ value: id, label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')' }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    const cont = ov.querySelector('#alias-typ-container');
-    if (!cont || !opts.length) return;
-    const prevVal = cont.dataset.selectedValue || cont.querySelector('.lss-ss-display')?.dataset.value || '';
     cont.innerHTML = '';
+    if (!opts.length) return;
     const ss = makeSearchableSelect(cont, 'alias-typ', opts, prevVal, '— Fahrzeugtyp wählen —');
     cont.dataset.selectedValue = prevVal;
     ss.addEventListener('ss-change', e => { cont.dataset.selectedValue = e.detail.value; });
   }
 
-  function initKzTypSelect(ov) {
-    let cat = {};
-    try { cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}'); } catch(_) {}
+  async function initKzTypSelect(ov) {
+    const kzTypCont = ov.querySelector('#kz-typ-container');
+    if (!kzTypCont) return;
+    // Wert VOR dem Rebuild merken
+    const prevVal = kzTypCont.dataset.selectedValue
+      || kzTypCont.querySelector('.lss-ss-display')?.dataset.value
+      || '';
+    kzTypCont.innerHTML = '<span style="font-size:12px;color:#888;">Lade …</span>';
+    const cat = await getVehicleTypeCatalog();
+    if (!ov.isConnected) return;
     const opts = Object.entries(cat)
       .map(([id, v]) => ({
         value: id,
         label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')'
       }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    const kzTypCont = ov.querySelector('#kz-typ-container');
-    if (!kzTypCont) return;
-    if (!opts.length) {
-      const prev = kzTypCont.querySelector('#kz-typ-fallback')?.value || '';
-      kzTypCont.innerHTML = '<input type="text" id="kz-typ-fallback" placeholder="Typ-ID eingeben" style="width:180px;border:1px solid #c5cad8;border-radius:5px;padding:5px 8px;font-size:13px;">';
-      if (prev) kzTypCont.querySelector('#kz-typ-fallback').value = prev;
-      return;
-    }
-    // Wert VOR dem Rebuild merken
-    const prevVal = kzTypCont.dataset.selectedValue
-      || kzTypCont.querySelector('.lss-ss-display')?.dataset.value
-      || '';
     kzTypCont.innerHTML = '';
+    if (!opts.length) return;
     const ss = makeSearchableSelect(kzTypCont, 'kz-typ', opts, prevVal, '— Fahrzeugtyp wählen —');
     // Wert sofort in dataset schreiben damit kz-add ihn findet
     kzTypCont.dataset.selectedValue = prevVal;
@@ -1604,9 +1618,7 @@
       const bl = ov.querySelector('#kz-bl').value;
       const cont = ov.querySelector('#kz-typ-container');
       const typ = cont?.dataset.selectedValue
-             || cont?.querySelector('.lss-ss-display')?.dataset.value
-             || cont?.querySelector('#kz-typ-fallback')?.value.trim()
-             || '';
+             || cont?.querySelector('.lss-ss-display')?.dataset.value || '';
       const val = ov.querySelector('#kz-val').value.trim();
       if (!typ || !val) {
         if (!typ) { cont && (cont.style.outline = '2px solid #dc3545'); setTimeout(() => cont && (cont.style.outline = ''), 1500); }
@@ -1624,8 +1636,6 @@
         resetCont.dataset.selectedValue = '';
         const disp = resetCont.querySelector('.lss-ss-display');
         if (disp) { disp.textContent = '— Fahrzeugtyp wählen —'; disp.dataset.value = ''; }
-        const fallback = resetCont.querySelector('#kz-typ-fallback');
-        if (fallback) fallback.value = '';
       }
       ov.querySelector('#kz-val').value = '';
       // Visuelles Feedback
