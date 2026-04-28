@@ -396,12 +396,14 @@
   }
 
   async function fetchAndCacheVehicleTypes() {
+    console.log('[LSS-VT] Lade Fahrzeugtypen von API…');
     return new Promise(resolve => {
       GM_xmlhttpRequest({
         method: 'GET',
         url: VEHICLE_TYPES_API_URL,
         headers: { 'Accept': 'application/json' },
         onload: r => {
+          console.log('[LSS-VT] API Status:', r.status, 'Länge:', r.responseText?.length);
           try {
             const data = JSON.parse(r.responseText);
             const map = {};
@@ -416,21 +418,24 @@
                 map[String(k)] = typeof v === 'string' ? v : (v?.caption || v?.name || k);
               });
             }
+            console.log('[LSS-VT] Einträge:', Object.keys(map).length);
             if (Object.keys(map).length) {
               _vehicleTypeCache = map;
               saveVehicleTypeCache(map);
+              console.log('[LSS-VT] Cache gespeichert.');
             }
             resolve(map);
-          } catch (_) { resolve({}); }
+          } catch (e) { console.error('[LSS-VT] Parse Fehler:', e); resolve({}); }
         },
-        onerror: () => resolve({}),
+        onerror: e => { console.error('[LSS-VT] Netzwerkfehler:', e); resolve({}); },
       });
     });
   }
 
   async function ensureVehicleTypes() {
+    console.log('[LSS-VT] ensureVehicleTypes aufgerufen');
     const cached = loadVehicleTypeCache();
-    if (cached) { _vehicleTypeCache = cached; return; }
+    if (cached) { _vehicleTypeCache = cached; console.log('[LSS-VT] Cache geladen'); return; }
     await fetchAndCacheVehicleTypes();
   }
 
