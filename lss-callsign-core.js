@@ -174,6 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
+  const CORE_VERSION = '5.16.7';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -1615,7 +1616,8 @@
           <div class="lss-tp" id="t-help">
             <div style="margin-bottom:12px;font-size:12px;color:#888;">
               <strong style="color:#445;">Leitstellenspiel – Funkrufnamen-Generator</strong>
-              &nbsp;·&nbsp; Version <strong style="color:#1d5f9e;">${esc(GM_info?.script?.version || '–')}</strong>
+              &nbsp;·&nbsp; Core <strong style="color:#1d5f9e;">${esc(CORE_VERSION)}</strong>
+              &nbsp;·&nbsp; Loader <strong style="color:#888;">${esc(GM_info?.script?.version || '–')}</strong>
             </div>
             <div class="lss-note">
               <strong>Schema-Platzhalter:</strong><br>
