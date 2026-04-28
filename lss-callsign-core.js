@@ -1080,13 +1080,14 @@
           defaultOpt.textContent = defaultName + ' (default)' + (defaultTkz1 ? ' · TKZ1: ' + defaultTkz1 : '');
           if ((vehicleProps[String(vehicleId)]?.fgr ?? 'default') === 'default') defaultOpt.selected = true;
           fgrSelect.appendChild(defaultOpt);
-          // Extensions expandieren: z.B. 7 → 7a + 7b falls konfiguriert
+          // Extensions expandieren: z.B. 7 → 7a…7e falls konfiguriert
+          const _SUB = ['a','b','c','d','e'];
           const expandedExts = [];
           for (const ext of extensions) {
             const sid = String(ext.type_id);
-            if (cfg.thwExtTkz1?.[sid + 'a'] || cfg.thwExtTkz1?.[sid + 'b']) {
-              if (cfg.thwExtTkz1?.[sid + 'a']) expandedExts.push({ ...ext, _virtualId: sid + 'a' });
-              if (cfg.thwExtTkz1?.[sid + 'b']) expandedExts.push({ ...ext, _virtualId: sid + 'b' });
+            const subs = _SUB.filter(s => cfg.thwExtTkz1?.[sid + s]);
+            if (subs.length) {
+              subs.forEach(s => expandedExts.push({ ...ext, _virtualId: sid + s }));
             } else {
               expandedExts.push({ ...ext, _virtualId: sid });
             }
@@ -1429,7 +1430,7 @@
           <div class="lss-tp" id="t-thw">
             <div class="lss-note">
               Ordnet THW-Extensions (Fachgruppen) eine 1. TKZ zu. Im Fahrzeug-Formular kann dann die Fachgruppe ausgewählt werden.<br>
-              Tipp: Extension-ID <code>default</code> = Fallback ohne Extension. Für Untertypen: <code>7a</code> + <code>7b</code> eingeben — werden automatisch als „FGr Ortung Typ A" / „FGr Ortung Typ B" angezeigt wenn Extension 7 vorhanden ist.
+              Tipp: Extension-ID <code>default</code> = Fallback ohne Extension. Für Untertypen: <code>7a</code> bis <code>7e</code> eingeben — werden automatisch als separate Einträge angezeigt wenn Extension 7 vorhanden ist.
             </div>
             <div class="lss-row">
               <div><label>Extension-ID</label>
