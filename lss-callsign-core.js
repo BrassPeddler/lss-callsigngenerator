@@ -1,3 +1,4 @@
+// ==/UserScript==
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SCHEMA-SYSTEM
@@ -173,6 +174,9 @@
   // ═══════════════════════════════════════════════════════════════════════════
 
   const STORE_KEY = 'lss_callsign_v4';
+  const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
+  const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
+  const VEHICLE_TYPES_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 Stunden
   const GDRIVE_CLIENT_ID_KEY = 'lss_gdrive_client_id';
   const GDRIVE_TOKEN_KEY = 'lss_gdrive_token';
   const GDRIVE_FILE_NAME = 'lss-callsign-backup.json';
@@ -353,6 +357,83 @@
     });
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FAHRZEUGTYP-KATALOG
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  let _vehicleTypeCache = null;
+
+  function loadVehicleTypeCache() {
+    try {
+      const raw = localStorage.getItem(STORE_VEHICLE_TYPES_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Prüfe Alter
+      if (parsed._ts && (Date.now() - parsed._ts) < VEHICLE_TYPES_MAX_AGE_MS) {
+        return parsed.map || null;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function saveVehicleTypeCache(map) {
+    try {
+      localStorage.setItem(STORE_VEHICLE_TYPES_KEY, JSON.stringify({ map, _ts: Date.now() }));
+    } catch (_) {}
+  }
+
+  function getVehicleTypeCatalog() {
+    if (_vehicleTypeCache) return _vehicleTypeCache;
+    // Eigener Cache
+    const own = loadVehicleTypeCache();
+    if (own) { _vehicleTypeCache = own; return own; }
+    // Fallback: rv_vehicleTypeCatalogMap vom anderen Script
+    try {
+      const rv = getVehicleTypeCatalog();
+      if (Object.keys(rv).length) return rv;
+    } catch (_) {}
+    return {};
+  }
+
+  async function fetchAndCacheVehicleTypes() {
+    return new Promise(resolve => {
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: VEHICLE_TYPES_API_URL,
+        headers: { 'Accept': 'application/json' },
+        onload: r => {
+          try {
+            const data = JSON.parse(r.responseText);
+            const map = {};
+            if (Array.isArray(data)) {
+              data.forEach(v => {
+                if (v?.id !== undefined) {
+                  map[String(v.id)] = v.caption || v.name || String(v.id);
+                }
+              });
+            } else if (typeof data === 'object') {
+              Object.entries(data).forEach(([k, v]) => {
+                map[String(k)] = typeof v === 'string' ? v : (v?.caption || v?.name || k);
+              });
+            }
+            if (Object.keys(map).length) {
+              _vehicleTypeCache = map;
+              saveVehicleTypeCache(map);
+            }
+            resolve(map);
+          } catch (_) { resolve({}); }
+        },
+        onerror: () => resolve({}),
+      });
+    });
+  }
+
+  async function ensureVehicleTypes() {
+    const cached = loadVehicleTypeCache();
+    if (cached) { _vehicleTypeCache = cached; return; }
+    await fetchAndCacheVehicleTypes();
+  }
+
   function saveConfig(c) {
     GM_setValue(STORE_KEY, JSON.stringify(c));
     
@@ -429,7 +510,6 @@
   const cacheBuilding = new Map();
   const cacheBL = new Map();
   const cacheOrt = new Map(); // buildingId → Ortsname aus Nominatim
-  let _vehicleTypeCatalog = null;
 
   // Persistenten Geo-Cache laden
   (function loadGeoCache() {
@@ -464,16 +544,6 @@
       if (!r.ok) return null;
       return r.json();
     } catch (_) { return null; }
-  }
-
-  function getVehicleTypeCatalog() {
-    if (_vehicleTypeCatalog !== null) return _vehicleTypeCatalog;
-    try {
-      _vehicleTypeCatalog = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
-    } catch (_) {
-      _vehicleTypeCatalog = {};
-    }
-    return _vehicleTypeCatalog;
   }
 
   async function getVehicle(id) {
@@ -638,7 +708,7 @@
 
   function getTypeName(typeId) {
     try {
-      const cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
+      const cat = getVehicleTypeCatalog();
       const e = cat[typeId] ?? cat[String(typeId)];
       if (!e) return null;
       // Katalog kann String sein ("RTW") oder Objekt ({ caption: "RTW" })
@@ -840,7 +910,7 @@
   // Erstellt <option>-HTML für das Fahrzeugtyp-Dropdown aus dem Spielkatalog
   function buildVehicleTypeOptions(selectedId) {
     try {
-      const cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
+      const cat = getVehicleTypeCatalog();
       const entries = Object.entries(cat).sort((a, b) => {
         const na = typeof a[1] === 'string' ? a[1] : (a[1].caption || '');
         const nb = typeof b[1] === 'string' ? b[1] : (b[1].caption || '');
@@ -1143,13 +1213,13 @@
   // ═══════════════════════════════════════════════════════════════════════════
 
   function initAliasTypSelect(ov) {
-    const cont = ov.querySelector('#alias-typ-container');
-    if (!cont) return;
-    const cat = getVehicleTypeCatalog();
+    let cat = {};
+    try { cat = getVehicleTypeCatalog(); } catch(_) {}
     const opts = Object.entries(cat)
       .map(([id, v]) => ({ value: id, label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')' }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    if (!opts.length) return;
+    const cont = ov.querySelector('#alias-typ-container');
+    if (!cont || !opts.length) return;
     const prevVal = cont.dataset.selectedValue || cont.querySelector('.lss-ss-display')?.dataset.value || '';
     cont.innerHTML = '';
     const ss = makeSearchableSelect(cont, 'alias-typ', opts, prevVal, '— Fahrzeugtyp wählen —');
@@ -1158,16 +1228,16 @@
   }
 
   function initKzTypSelect(ov) {
-    const kzTypCont = ov.querySelector('#kz-typ-container');
-    if (!kzTypCont) return;
-    const cat = getVehicleTypeCatalog();
+    let cat = {};
+    try { cat = getVehicleTypeCatalog(); } catch(_) {}
     const opts = Object.entries(cat)
       .map(([id, v]) => ({
         value: id,
         label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')'
       }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
-    if (!opts.length) return;
+    const kzTypCont = ov.querySelector('#kz-typ-container');
+    if (!kzTypCont || !opts.length) return;
     // Wert VOR dem Rebuild merken
     const prevVal = kzTypCont.dataset.selectedValue
       || kzTypCont.querySelector('.lss-ss-display')?.dataset.value
@@ -1724,7 +1794,7 @@
     const thwDfgrTypCont = ov.querySelector('#thw-dfgr-typ-container');
     if (thwDfgrTypCont) {
       try {
-        const cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}');
+        const cat = getVehicleTypeCatalog();
         const opts = Object.entries(cat).map(([id, v]) => ({
           value: id,
           label: (typeof v === 'string' ? v : (v.caption || v.name || id)) + ' (' + id + ')'
@@ -2371,7 +2441,7 @@
 
   function buildKzTable() {
     let cat = {};
-    try { cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}'); } catch (_) {}
+    try { cat = getVehicleTypeCatalog(); } catch (_) {}
     const typLabel = id => {
       const e = cat[id] ?? cat[String(id)];
       return e ? (typeof e === 'string' ? e : (e.caption || e.name || id)) : id;
@@ -2617,7 +2687,7 @@
 
   function buildThwDefaultFgrTable() {
     let cat = {};
-    try { cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}'); } catch (_) {}
+    try { cat = getVehicleTypeCatalog(); } catch (_) {}
     const typLabel = id => {
       const e = cat[id] ?? cat[String(id)];
       return e ? (typeof e === 'string' ? e : (e.caption || e.name || id)) : id;
@@ -2933,7 +3003,7 @@
 
   function buildAliasTable() {
     let cat = {};
-    try { cat = JSON.parse(localStorage.getItem('rv_vehicleTypeCatalogMap') || '{}'); } catch(_) {}
+    try { cat = getVehicleTypeCatalog(); } catch(_) {}
     const typLabel = id => {
       const e = cat[id] ?? cat[String(id)];
       return e ? (typeof e === 'string' ? e : (e.caption || e.name || id)) : id;
