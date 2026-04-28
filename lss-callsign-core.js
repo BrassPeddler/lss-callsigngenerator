@@ -1156,7 +1156,13 @@
       }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de'));
     const kzTypCont = ov.querySelector('#kz-typ-container');
-    if (!kzTypCont || !opts.length) return;
+    if (!kzTypCont) return;
+    if (!opts.length) {
+      const prev = kzTypCont.querySelector('#kz-typ-fallback')?.value || '';
+      kzTypCont.innerHTML = '<input type="text" id="kz-typ-fallback" placeholder="Typ-ID eingeben" style="width:180px;border:1px solid #c5cad8;border-radius:5px;padding:5px 8px;font-size:13px;">';
+      if (prev) kzTypCont.querySelector('#kz-typ-fallback').value = prev;
+      return;
+    }
     // Wert VOR dem Rebuild merken
     const prevVal = kzTypCont.dataset.selectedValue
       || kzTypCont.querySelector('.lss-ss-display')?.dataset.value
@@ -1598,7 +1604,9 @@
       const bl = ov.querySelector('#kz-bl').value;
       const cont = ov.querySelector('#kz-typ-container');
       const typ = cont?.dataset.selectedValue
-             || cont?.querySelector('.lss-ss-display')?.dataset.value || '';
+             || cont?.querySelector('.lss-ss-display')?.dataset.value
+             || cont?.querySelector('#kz-typ-fallback')?.value.trim()
+             || '';
       const val = ov.querySelector('#kz-val').value.trim();
       if (!typ || !val) {
         if (!typ) { cont && (cont.style.outline = '2px solid #dc3545'); setTimeout(() => cont && (cont.style.outline = ''), 1500); }
@@ -1616,6 +1624,8 @@
         resetCont.dataset.selectedValue = '';
         const disp = resetCont.querySelector('.lss-ss-display');
         if (disp) { disp.textContent = '— Fahrzeugtyp wählen —'; disp.dataset.value = ''; }
+        const fallback = resetCont.querySelector('#kz-typ-fallback');
+        if (fallback) fallback.value = '';
       }
       ov.querySelector('#kz-val').value = '';
       // Visuelles Feedback
