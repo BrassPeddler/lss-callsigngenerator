@@ -174,7 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.17.2';
+  const CORE_VERSION = '5.17.3';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -3207,7 +3207,8 @@
     .lss-row { display:flex;gap:8px;margin-bottom:10px;align-items:flex-end;flex-wrap:wrap; }
     .lss-row label { font-size:12px;color:#556;display:block;margin-bottom:3px; }
     .lss-row input, .lss-row select {
-      border:1px solid #c5cad8;border-radius:5px;padding:5px 8px;font-size:13px;
+      border:1px solid #c5cad8;border-radius:5px;padding:0 8px;font-size:13px;
+      height:30px;box-sizing:border-box;
     }
     .bulk-db {
       padding:3px 10px;font-size:12px;border:1px solid #c5cad8;border-radius:20px;
@@ -3225,14 +3226,14 @@
     .lss-ph-chip:hover { background:#1d5f9e;color:#fff;border-color:#1d5f9e;transform:translateY(-1px); }
     .lss-ph-chip:active { transform:translateY(0); }
 
-    .lss-ss-wrap { position:relative;display:inline-block;vertical-align:middle; }
+    .lss-ss-wrap { position:relative;display:inline-flex;align-items:stretch;vertical-align:middle; }
     .lss-ss-display {
       min-width:220px;border:1px solid #c5cad8;border-radius:6px;
-      padding:6px 28px 6px 10px;font-size:13px;cursor:pointer;background:#fff;
+      padding:0 28px 0 10px;font-size:13px;cursor:pointer;background:#fff;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       user-select:none;position:relative;
-      display:inline-block;box-sizing:border-box;
-      line-height:1.4;
+      display:flex;align-items:center;box-sizing:border-box;
+      height:30px;line-height:1;
     }
     .lss-ss-display::after {
       content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);
