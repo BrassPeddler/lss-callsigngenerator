@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Leitstellenspiel – Funkrufnamen-Generator
-// @namespace    https://github.com/DEIN_GITHUB_USERNAME/lss-callsign-generator
+// @namespace    https://github.com/BrassPeddler/lss-callsigngenerator
 // @version      1.0.0
 // @description  Generiert Funkrufnamen nach konfigurierbarem Schema (pro Bundesland & Organisation).
-// @author       DEIN_GITHUB_USERNAME
-// @homepage     https://github.com/DEIN_GITHUB_USERNAME/lss-callsign-generator
-// @supportURL   https://github.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/issues
-// @downloadURL  https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-loader.user.js
-// @updateURL    https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-loader.user.js
+// @author       BrassPeddler
+// @homepage     https://github.com/BrassPeddler/lss-callsigngenerator
+// @supportURL   https://github.com/BrassPeddler/lss-callsigngenerator/issues
+// @downloadURL  https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-loader.user.js
+// @updateURL    https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-loader.user.js
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_info
 // @grant        GM_addStyle
@@ -26,7 +26,7 @@
 // ==/UserScript==
 
 (function () {
-  const CORE_URL = 'https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-core.js';
+  const CORE_URL = 'https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-core.js';
 
   GM_xmlhttpRequest({
     method: 'GET',

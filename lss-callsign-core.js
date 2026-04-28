@@ -596,7 +596,7 @@
         GM_xmlhttpRequest({
           method: 'GET',
           url: `https://nominatim.openstreetmap.org/reverse?format=json&lat=${b.latitude}&lon=${b.longitude}&zoom=10&addressdetails=1`,
-          headers: { 'User-Agent': 'lss-callsign-generator/5.7', 'Accept': 'application/json' },
+          headers: { 'User-Agent': 'lss-callsigngenerator/5.7', 'Accept': 'application/json' },
           onload: r => {
             if (r.status === 429) {
               if (retries <= 0) { reject(new Error('429-max-retries')); return; }
