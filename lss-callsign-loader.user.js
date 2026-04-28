@@ -20,11 +20,12 @@
 // @connect      googleapis.com
 // @connect      accounts.google.com
 // @connect      raw.githubusercontent.com
+// @connect      api.lss-manager.de
 // @run-at       document-idle
 // ==/UserScript==
 
 (function () {
-  const CORE_URL = 'https://raw.githubusercontent.com/DEIN_GITHUB_USERNAME/lss-callsign-generator/main/lss-callsign-core.js';
+  const CORE_URL = 'https://raw.githubusercontent.com/BrassPeddler/lss-callsigngenerator/main/lss-callsign-core.js';
 
   GM_xmlhttpRequest({
     method: 'GET',

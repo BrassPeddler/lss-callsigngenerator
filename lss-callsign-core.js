@@ -3905,6 +3905,9 @@
         return;
       }
 
+      // Fahrzeugtyp-Katalog laden
+      ensureVehicleTypes();
+
       // Bearbeitungs-Formulare
       document.querySelectorAll(SEL_FORM).forEach(handleForm);
         const obs = new MutationObserver(muts => {
