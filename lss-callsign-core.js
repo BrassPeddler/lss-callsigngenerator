@@ -3331,9 +3331,26 @@
   async function handleBuildingTab(doc, buildingId) {
     if (doc.getElementById('lss-tab-link')) return;
 
-    const navTabs = doc.querySelector('.nav-tabs');
-    const tabContent = doc.querySelector('.tab-content');
-    if (!navTabs || !tabContent) return;
+    let navTabs = doc.querySelector('.nav-tabs');
+    let tabContent = doc.querySelector('.tab-content');
+    if (!navTabs || !tabContent) {
+      // Kein Tab-Gerüst vorhanden (z.B. RHS, Fähre) → eigenes erstellen
+      const wrapper = doc.createElement('div');
+      wrapper.style.cssText = 'margin:16px 0;';
+      navTabs = doc.createElement('ul');
+      navTabs.className = 'nav nav-tabs';
+      tabContent = doc.createElement('div');
+      tabContent.className = 'tab-content';
+      tabContent.style.cssText = 'border:1px solid #ddd;border-top:none;';
+      wrapper.appendChild(navTabs);
+      wrapper.appendChild(tabContent);
+      const anchor = doc.querySelector('.panel-danger, .panel');
+      if (anchor?.parentNode) {
+        anchor.parentNode.insertBefore(wrapper, anchor);
+      } else {
+        (doc.querySelector('.container') || doc.body).appendChild(wrapper);
+      }
+    }
 
     // Bundesland + Props laden
     const bl = await getBundesland(buildingId);
@@ -3913,13 +3930,19 @@
         if (document.querySelector('.nav-tabs')) {
           handleBuildingTab(document, buildingId);
         } else {
+          let done = false;
           const obs = new MutationObserver(() => {
             if (document.querySelector('.nav-tabs')) {
+              done = true;
               obs.disconnect();
               handleBuildingTab(document, buildingId);
             }
           });
           obs.observe(document.body, { childList: true, subtree: true });
+          // Fallback für Gebäude ohne Tab-Struktur (z.B. RHS, Fähre)
+          const onLoaded = () => { if (!done) { obs.disconnect(); handleBuildingTab(document, buildingId); } };
+          if (document.readyState === 'complete') onLoaded();
+          else window.addEventListener('load', onLoaded, { once: true });
         }
         return;
       }
