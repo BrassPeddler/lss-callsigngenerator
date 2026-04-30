@@ -174,7 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.17.5';
+  const CORE_VERSION = '5.17.6';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -3365,7 +3365,9 @@
 
     // ── „Alle umbenennen"-Button im Fahrzeuge-Tab ─────────────────────────────
     const vehicleTabPane = doc.getElementById('tab_vehicles') || doc.querySelector('.tab-pane.active');
-    if (vehicleTabPane) {
+    const vehicleTable = !vehicleTabPane ? doc.querySelector('table.table') : null;
+    const bulkAnchor = vehicleTabPane || vehicleTable;
+    if (bulkAnchor) {
       const bulkBtn = doc.createElement('button');
       bulkBtn.type = 'button';
       bulkBtn.id = 'lss-bulk-btn';
@@ -3377,7 +3379,11 @@
         box-shadow:0 2px 6px rgba(29,95,158,.25);
       `;
       bulkBtn.addEventListener('click', () => openBulkRenameModal(doc, buildingId));
-      vehicleTabPane.insertAdjacentElement('afterbegin', bulkBtn);
+      if (vehicleTabPane) {
+        vehicleTabPane.insertAdjacentElement('afterbegin', bulkBtn);
+      } else {
+        vehicleTable.insertAdjacentElement('beforebegin', bulkBtn);
+      }
     }
 
     // ── Tab-Link ──────────────────────────────────────────────────────────────
