@@ -2346,32 +2346,75 @@
     });
 
     // Import Konfiguration
+    function applyImportCfg(p, fb, ov) {
+      if (!p.orgLabels) p.orgLabels = JSON.parse(JSON.stringify(DEFAULT_ORG_LABELS));
+      if (!p.aliases) p.aliases = {};
+      if (!p.thwExtTkz1) p.thwExtTkz1 = {};
+      if (!p.thwDefaultFgr) p.thwDefaultFgr = {};
+      if (!p.ils) p.ils = {};
+      if (!p.ilsNr) p.ilsNr = {};
+      if (!p.buildingAliases) p.buildingAliases = {};
+      if (!p.buildingSchemas) p.buildingSchemas = { ...DEFAULT_BUILDING_SCHEMAS };
+      cfg = p; saveConfig(cfg);
+      ov.querySelector('#sc-tbl').innerHTML = buildSchemaTable();
+      ov.querySelector('#kz-tbl').innerHTML = buildKzTable();
+      ov.querySelector('#org-tbl').innerHTML = buildOrgTable();
+      ov.querySelector('#ol-tbl').innerHTML = buildOrgLabelsTable();
+      ov.querySelector('#alias-tbl').innerHTML = buildAliasTable();
+      ov.querySelector('#thw-ext-tbl').innerHTML = buildThwExtTable();
+      ov.querySelector('#thw-dfgr-tbl').innerHTML = buildThwDefaultFgrTable();
+      ov.querySelector('#balias-tbl').innerHTML = buildBAliasTable();
+      ov.querySelector('#ils-tbl').innerHTML = buildILSTable();
+      bindSchemaEvents(ov); bindKzEvents(ov); bindOrgEvents(ov); bindOrgLabelsEvents(ov); bindAliasEvents(ov); bindThwExtEvents(ov); bindThwDefaultFgrEvents(ov); bindBAliasEvents(ov); bindILSEvents(ov);
+      initKzTypSelect(ov); initAliasTypSelect(ov); initILSBuildingSelect(ov);
+      fb.innerHTML = '<div class="lss-note lss-note-ok">✓ Import erfolgreich.</div>';
+    }
     ov.querySelector('#io-imp').addEventListener('click', () => {
       const fb = ov.querySelector('#io-fb');
       try {
         const p = JSON.parse(ov.querySelector('#io-ta').value);
-        if (!p.schemas || !p.org || !p.kz) throw new Error('Fehlende Schlüssel.');
-        if (!p.orgLabels) p.orgLabels = JSON.parse(JSON.stringify(DEFAULT_ORG_LABELS));
-        if (!p.aliases) p.aliases = {};
-        if (!p.thwExtTkz1) p.thwExtTkz1 = {};
-        if (!p.thwDefaultFgr) p.thwDefaultFgr = {};
-        if (!p.ils) p.ils = {};
-        if (!p.ilsNr) p.ilsNr = {};
-        if (!p.buildingAliases) p.buildingAliases = {};
-        if (!p.buildingSchemas) p.buildingSchemas = { ...DEFAULT_BUILDING_SCHEMAS };
-        cfg = p; saveConfig(cfg);
-        ov.querySelector('#sc-tbl').innerHTML = buildSchemaTable();
-        ov.querySelector('#kz-tbl').innerHTML = buildKzTable();
-        ov.querySelector('#org-tbl').innerHTML = buildOrgTable();
-        ov.querySelector('#ol-tbl').innerHTML = buildOrgLabelsTable();
-        ov.querySelector('#alias-tbl').innerHTML = buildAliasTable();
-        ov.querySelector('#thw-ext-tbl').innerHTML = buildThwExtTable();
-        ov.querySelector('#thw-dfgr-tbl').innerHTML = buildThwDefaultFgrTable();
-        ov.querySelector('#balias-tbl').innerHTML = buildBAliasTable();
-        ov.querySelector('#ils-tbl').innerHTML = buildILSTable();
-        bindSchemaEvents(ov); bindKzEvents(ov); bindOrgEvents(ov); bindOrgLabelsEvents(ov); bindAliasEvents(ov); bindThwExtEvents(ov); bindThwDefaultFgrEvents(ov); bindBAliasEvents(ov); bindILSEvents(ov);
-        initKzTypSelect(ov); initAliasTypSelect(ov); initILSBuildingSelect(ov);
-        fb.innerHTML = '<div class="lss-note lss-note-ok">✓ Import erfolgreich.</div>';
+        const REQUIRED = ['schemas', 'org', 'kz'];
+        const missing = REQUIRED.filter(k => !p[k]);
+        if (missing.length) {
+          const availKeys = Object.keys(p).filter(k => p[k] && typeof p[k] === 'object' && !Array.isArray(p[k]));
+          const rows = missing.map(k => `
+            <tr>
+              <td style="padding:4px 8px;font-weight:600;font-family:monospace;color:#333;">${esc(k)}</td>
+              <td style="padding:4px 8px;">
+                <select data-map-to="${esc(k)}" style="border:1px solid #c5cad8;border-radius:5px;padding:3px 6px;font-size:12px;">
+                  <option value="">— nicht mappen —</option>
+                  ${availKeys.map(ak => `<option value="${esc(ak)}">${esc(ak)}</option>`).join('')}
+                </select>
+              </td>
+            </tr>`).join('');
+          fb.innerHTML = `
+            <div class="lss-note lss-note-err" id="io-map-err" style="margin-bottom:8px;">
+              ✕ Fehlende Pflicht-Schlüssel: <code>${missing.map(esc).join('</code>, <code>')}</code>
+            </div>
+            <div style="font-size:12px;font-weight:600;color:#445;margin-bottom:6px;">Schlüssel aus importiertem JSON mappen:</div>
+            <table style="border-collapse:collapse;margin-bottom:10px;">
+              <thead><tr>
+                <th style="padding:4px 8px;text-align:left;font-size:11px;color:#778;border-bottom:1px solid #dde;">Erwarteter Schlüssel</th>
+                <th style="padding:4px 8px;text-align:left;font-size:11px;color:#778;border-bottom:1px solid #dde;">Importierter Schlüssel</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <button class="lss-btn lss-btn-ok" id="io-imp-mapped">⬆ Mit Mapping importieren</button>`;
+          fb.querySelector('#io-imp-mapped').addEventListener('click', () => {
+            fb.querySelectorAll('select[data-map-to]').forEach(sel => {
+              if (sel.value && p[sel.value] !== undefined) p[sel.dataset.mapTo] = p[sel.value];
+            });
+            const stillMissing = REQUIRED.filter(k => !p[k]);
+            if (stillMissing.length) {
+              fb.querySelector('#io-map-err').innerHTML =
+                `✕ Fehlende Pflicht-Schlüssel: <code>${stillMissing.map(esc).join('</code>, <code>')}</code>`;
+              return;
+            }
+            applyImportCfg(p, fb, ov);
+          });
+          return;
+        }
+        applyImportCfg(p, fb, ov);
       } catch (e) {
         fb.innerHTML = `<div class="lss-note lss-note-err">✕ ${esc(e.message)}</div>`;
       }
