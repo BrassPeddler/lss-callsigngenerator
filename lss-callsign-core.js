@@ -174,7 +174,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.17.6';
+  const CORE_VERSION = '5.17.7';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
