@@ -122,13 +122,14 @@
   const DEFAULT_BUILDING_ALIASES = {};
 
   // Gebäude-Schemas pro Dienst: { dienst: schema } + '*' als Fallback
-  const DIENST_LIST = ['Feuerwehr', 'Rettung', 'Polizei', 'THW'];
+  const DIENST_LIST_BASE = ['Feuerwehr', 'Rettung', 'Polizei', 'THW'];
+  const DIENST_LIST = DIENST_LIST_BASE; // Alias
   const DEFAULT_BUILDING_SCHEMAS = { '*': '{balias} {ils} {ilsnr} ({ort}) {org}' };
 
-  // Feste Dienste für Schema-Lookup
-  const DIENSTE = ['Feuerwehr', 'Rettung', 'Polizei', 'THW'];
+  // Aliase – zur Laufzeit durch getAllDienste() erweitert
+  const DIENSTE = DIENST_LIST_BASE;
 
-  // Feste Standard-Organisation pro Dienst (nur Rettung nutzt das Dropdown)
+  // Feste Standard-Organisation pro Dienst (Erweiterung via getDienstOrgDefault())
   const DIENST_ORG_DEFAULT = {
     'Feuerwehr': 'Florian',
     'THW': 'Heros',
@@ -174,7 +175,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.17.8';
+  const CORE_VERSION = '5.18.0';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
@@ -212,6 +213,8 @@
         // Migration alter Einzel-Schema
         if (parsed.buildingSchema && !parsed.buildingSchemas) parsed.buildingSchemas = { '*': parsed.buildingSchema };
         delete parsed.buildingSchema;
+        if (!Array.isArray(parsed.dienste)) parsed.dienste = [];
+        if (!parsed.buildingTypeDienst) parsed.buildingTypeDienst = {};
         return parsed;
       }
     } catch (_) {}
@@ -459,6 +462,33 @@
 
   let cfg = loadConfig();
   let buildingProps = loadBuildingProps();
+
+  // ── Dienst-Hilfsfunktionen ────────────────────────────────────────────────
+
+  function getAllDienste() {
+    const custom = (cfg.dienste || []).map(d => d.name);
+    return [...DIENST_LIST_BASE, ...custom.filter(n => !DIENST_LIST_BASE.includes(n))];
+  }
+
+  function getEffectiveDienst(buildingTypeId) {
+    if (buildingTypeId == null) return null;
+    const id = String(buildingTypeId);
+    return cfg.buildingTypeDienst?.[id] || BUILDING_TYPE_DIENST[buildingTypeId] || null;
+  }
+
+  // Gibt den Org-Default-String zurück ('' = kein Prefix).
+  // Gibt null zurück wenn der Dienst das Dropdown verwendet (eingebaut: Rettung).
+  function getDienstOrgDefault(dienst) {
+    const custom = cfg.dienste?.find(d => d.name === dienst);
+    if (custom !== undefined) return custom.orgDefault ?? '';
+    return dienst in DIENST_ORG_DEFAULT ? DIENST_ORG_DEFAULT[dienst] : null;
+  }
+
+  function dienstUsesOrgDropdown(dienst) {
+    const custom = cfg.dienste?.find(d => d.name === dienst);
+    if (custom !== undefined) return custom.useOrgDropdown ?? false;
+    return dienst === 'Rettung';
+  }
 
   function loadVehicleProps() {
     try {
@@ -962,8 +992,9 @@
     const _propsOrgLabel = props.org ? cfg.orgLabels?.find(o => o.label === props.org) : null;
     const _propsOrgEntry = props.org ? cfg.org[props.org] : null;
     const _propsOrgName = _propsOrgEntry?.name || _propsOrgLabel?.value || null;
-    const orgName = (dienst && dienst !== 'Rettung' && dienst in DIENST_ORG_DEFAULT)
-      ? DIENST_ORG_DEFAULT[dienst]
+    const _dienstOrgDef = dienst ? getDienstOrgDefault(dienst) : null;
+    const orgName = (_dienstOrgDef !== null && !dienstUsesOrgDropdown(dienst))
+      ? _dienstOrgDef
       : (_propsOrgName || orgEntry?.name || '');
     // orgname: props.orgname (manuell) → cfg.org[keyword].label → orgLabels → orgName
     // _orgKeyword ist jetzt das Label (z.B. 'BRK') — direkt als orgname verwendbar
@@ -1038,8 +1069,7 @@
     // Dienst aus building_type ermitteln (für Schema-Lookup)
     const orgEntry = detectOrgEntry(buildingCaption);
     const buildingType = (await getBuilding(buildingId))?.building_type ?? null;
-    const dienst = (buildingType !== null ? BUILDING_TYPE_DIENST[buildingType] : null)
-                        || orgEntry?.dienst || null;
+    const dienst = getEffectiveDienst(buildingType) || orgEntry?.dienst || null;
     const activeSchema = getSchema(bl, dienst);
     const schemaKey = findSchemaKey(bl, dienst);
 
@@ -1283,6 +1313,7 @@
             <button class="lss-tab" data-t="t-aliases">Aliase</button>
             <button class="lss-tab" data-t="t-thw">THW</button>
             <button class="lss-tab" data-t="t-baliases">Gebäude-Aliase</button>
+            <button class="lss-tab" data-t="t-dienste">Dienste</button>
             <button class="lss-tab" data-t="t-ils">ILS</button>
             <button class="lss-tab" data-t="t-buildings">Gebäude-Eigenschaften</button>
             <button class="lss-tab" data-t="t-bulk">Massen-Umbenennung</button>
@@ -1337,7 +1368,7 @@
                 <label>Dienst</label>
                 <select id="sc-org" style="min-width:130px;">
                   <option value="*">* (alle)</option>
-                  ${DIENSTE.map(d => `<option value="${d}">${d}</option>`).join('')}
+                  ${getAllDienste().map(d => `<option value="${d}">${d}</option>`).join('')}
                 </select>
               </div>
               <div style="flex:1;">
@@ -1384,7 +1415,7 @@
                 <input id="org-kw" type="text" placeholder="z.B. DRK" style="width:110px;"></div>
               <div><label>Dienst</label>
                 <select id="org-dienst" style="min-width:120px;">
-                  ${DIENSTE.map(d => `<option value="${d}">${d}</option>`).join('')}
+                  ${getAllDienste().map(d => `<option value="${d}">${d}</option>`).join('')}
                 </select></div>
               <div><label>Anzeigename ({org})</label>
                 <input id="org-name" type="text" placeholder="z.B. Rotkreuz" style="width:140px;"></div>
@@ -1475,7 +1506,7 @@
                   <th>Schema</th>
                 </tr></thead>
                 <tbody>
-                  ${['*','Feuerwehr','Rettung','Polizei','THW'].map(d => `
+                  ${['*',...getAllDienste()].map(d => `
                   <tr>
                     <td style="font-size:12px;font-weight:600;color:#445;">${d === '*' ? '* (Fallback)' : d}</td>
                     <td><input class="bschema-row" data-dienst="${d}" type="text"
@@ -1520,6 +1551,53 @@
             <div id="balias-tbl">${buildBAliasTable()}</div>
           </div>
 
+          <!-- DIENSTE -->
+          <div class="lss-tp" id="t-dienste">
+            <div class="lss-note">
+              Verwalte Dienste. Die vier eingebauten Dienste <strong>Feuerwehr, Rettung, Polizei, THW</strong>
+              sind schreibgeschützt. Neue Dienste erscheinen automatisch in allen Dropdowns, Schemas, ILS-Tabs
+              und Bulk-Buttons.<br>
+              <strong>Gebäudetyp-Zuordnungen</strong> ermöglichen es, einzelne LSS-Gebäudetypen (z.B. 21 = RHS)
+              einem anderen Dienst zuzuordnen als den Standardwert.
+            </div>
+
+            <!-- Neuen Dienst hinzufügen -->
+            <div class="lss-row" style="margin-bottom:8px;">
+              <div><label>Name</label>
+                <input id="d-name" type="text" placeholder="z.B. Wasserrettung" style="width:150px;"></div>
+              <div><label>Org-Prefix ({org})</label>
+                <input id="d-org" type="text" placeholder="z.B. Neptun (leer=keiner)" style="width:160px;"></div>
+              <div style="display:flex;flex-direction:column;justify-content:flex-end;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                  <input id="d-dropdown" type="checkbox"> Org per Dropdown (wie Rettung)
+                </label>
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button id="d-add" class="lss-btn">+ Hinzufügen</button>
+              </div>
+            </div>
+            <div id="d-tbl">${buildDiensteTable()}</div>
+
+            <h4 style="margin:20px 0 6px;font-size:13px;font-weight:600;color:#1d4f7a;">Gebäudetyp-Zuordnungen</h4>
+            <div class="lss-note" style="margin-bottom:8px;">
+              Überschreibe den Standard-Dienst für einen LSS-Gebäudetyp (building_type ID aus der LSS-API).
+              Beispiel: Typ 21 (RHS) von Rettung auf Wasserrettung umstellen.
+            </div>
+            <div class="lss-row" style="margin-bottom:8px;">
+              <div><label>Gebäudetyp-ID</label>
+                <input id="d-bt-id" type="number" min="0" placeholder="z.B. 21" style="width:100px;"></div>
+              <div><label>Dienst</label>
+                <select id="d-bt-dienst" style="min-width:150px;">
+                  ${getAllDienste().map(d => `<option value="${d}">${d}</option>`).join('')}
+                </select>
+              </div>
+              <div style="display:flex;align-items:flex-end;">
+                <button id="d-bt-add" class="lss-btn">+ Zuordnen</button>
+              </div>
+            </div>
+            <div id="d-bt-tbl">${buildBuildingTypeDienstTable()}</div>
+          </div>
+
           <!-- ILS -->
           <div class="lss-tp" id="t-ils">
             <div class="lss-note">
@@ -1554,7 +1632,7 @@
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;">
               <div id="bulk-dienst-btns" style="display:flex;gap:4px;flex-wrap:wrap;">
                 <button class="bulk-db bulk-db-active" data-d="">Alle</button>
-                ${['Feuerwehr','Rettung','Polizei','THW'].map(d =>
+                ${getAllDienste().map(d =>
                   `<button class="bulk-db" data-d="${d.toLowerCase()}">${d}</button>`
                 ).join('')}
               </div>
@@ -1756,6 +1834,36 @@
 
     });
     bindOrgLabelsEvents(ov);
+    // Dienste add
+    ov.querySelector('#d-add').addEventListener('click', () => {
+      const name = ov.querySelector('#d-name').value.trim();
+      const orgDefault = ov.querySelector('#d-org').value.trim();
+      const useOrgDropdown = ov.querySelector('#d-dropdown').checked;
+      if (!name) { ov.querySelector('#d-name').style.outline = '2px solid #dc3545'; setTimeout(() => ov.querySelector('#d-name').style.outline = '', 1500); return; }
+      if (getAllDienste().includes(name)) { ov.querySelector('#d-name').style.outline = '2px solid #f0a500'; setTimeout(() => ov.querySelector('#d-name').style.outline = '', 1500); return; }
+      if (!cfg.dienste) cfg.dienste = [];
+      cfg.dienste.push({ name, orgDefault, useOrgDropdown });
+      saveConfig(cfg);
+      ov.querySelector('#d-tbl').innerHTML = buildDiensteTable();
+      bindDiensteEvents(ov);
+      ov.querySelector('#d-name').value = '';
+      ov.querySelector('#d-org').value = '';
+      ov.querySelector('#d-dropdown').checked = false;
+    });
+    bindDiensteEvents(ov);
+    // Dienste Gebäudetyp-Zuordnung add
+    ov.querySelector('#d-bt-add').addEventListener('click', () => {
+      const id = ov.querySelector('#d-bt-id').value.trim();
+      const dienst = ov.querySelector('#d-bt-dienst').value;
+      if (!id || isNaN(Number(id))) { ov.querySelector('#d-bt-id').style.outline = '2px solid #dc3545'; setTimeout(() => ov.querySelector('#d-bt-id').style.outline = '', 1500); return; }
+      if (!cfg.buildingTypeDienst) cfg.buildingTypeDienst = {};
+      cfg.buildingTypeDienst[id] = dienst;
+      saveConfig(cfg);
+      ov.querySelector('#d-bt-tbl').innerHTML = buildBuildingTypeDienstTable();
+      bindBuildingTypeDienstEvents(ov);
+      ov.querySelector('#d-bt-id').value = '';
+    });
+    bindBuildingTypeDienstEvents(ov);
     // Google Drive
     const gdriveClientIdInp = ov.querySelector('#gdrive-client-id');
     const gdriveFb = ov.querySelector('#gdrive-fb');
@@ -2013,7 +2121,7 @@
         for (const bid of buildingIds) {
           const b = await getBuilding(bid);
           const bt = b?.building_type;
-          const d = bt != null ? (BUILDING_TYPE_DIENST[bt] || '') : '';
+          const d = bt != null ? (getEffectiveDienst(bt) || '') : '';
           if (!dienstFilter || d.toLowerCase() === dienstFilter) {
             relevantBuildingIds.add(String(bid));
           }
@@ -2054,8 +2162,7 @@
           const bl = await getBundesland(bid);
           const ortCoords = await getOrt(bid);
           const buildingCap = building?.caption || '';
-          const dienst = building?.building_type != null
-            ? BUILDING_TYPE_DIENST[building.building_type] || null : null;
+          const dienst = getEffectiveDienst(building?.building_type);
 
           processedBuildings++;
           if (processedBuildings % 10 === 0 || processedBuildings === totalBuildings) {
@@ -2330,7 +2437,7 @@
     // Reset
     ov.querySelector('#io-rst').addEventListener('click', () => {
       if (!confirm('Konfiguration auf Standard zurücksetzen?')) return;
-      cfg = { schemas: { ...DEFAULT_SCHEMAS }, org: JSON.parse(JSON.stringify(DEFAULT_ORG)), kz: JSON.parse(JSON.stringify(DEFAULT_KZ)), orgLabels: JSON.parse(JSON.stringify(DEFAULT_ORG_LABELS)), aliases: {}, thwExtTkz1: {}, thwDefaultFgr: {}, ils: {}, ilsNr: {}, buildingAliases: {}, buildingSchemas: { ...DEFAULT_BUILDING_SCHEMAS } };
+      cfg = { schemas: { ...DEFAULT_SCHEMAS }, org: JSON.parse(JSON.stringify(DEFAULT_ORG)), kz: JSON.parse(JSON.stringify(DEFAULT_KZ)), orgLabels: JSON.parse(JSON.stringify(DEFAULT_ORG_LABELS)), aliases: {}, thwExtTkz1: {}, thwDefaultFgr: {}, ils: {}, ilsNr: {}, buildingAliases: {}, buildingSchemas: { ...DEFAULT_BUILDING_SCHEMAS }, dienste: [], buildingTypeDienst: {} };
       saveConfig(cfg);
       ov.querySelector('#sc-tbl').innerHTML = buildSchemaTable();
       ov.querySelector('#kz-tbl').innerHTML = buildKzTable();
@@ -2341,7 +2448,9 @@
       ov.querySelector('#thw-dfgr-tbl').innerHTML = buildThwDefaultFgrTable();
       ov.querySelector('#balias-tbl').innerHTML = buildBAliasTable();
       ov.querySelector('#ils-tbl').innerHTML = buildILSTable();
-      bindSchemaEvents(ov); bindKzEvents(ov); bindOrgEvents(ov); bindOrgLabelsEvents(ov); bindAliasEvents(ov); bindThwExtEvents(ov); bindThwDefaultFgrEvents(ov); bindBAliasEvents(ov); bindILSEvents(ov);
+      ov.querySelector('#d-tbl').innerHTML = buildDiensteTable();
+      ov.querySelector('#d-bt-tbl').innerHTML = buildBuildingTypeDienstTable();
+      bindSchemaEvents(ov); bindKzEvents(ov); bindOrgEvents(ov); bindOrgLabelsEvents(ov); bindAliasEvents(ov); bindThwExtEvents(ov); bindThwDefaultFgrEvents(ov); bindBAliasEvents(ov); bindILSEvents(ov); bindDiensteEvents(ov); bindBuildingTypeDienstEvents(ov);
       initKzTypSelect(ov); initAliasTypSelect(ov); initILSBuildingSelect(ov);
     });
 
@@ -2355,6 +2464,8 @@
       if (!p.ilsNr) p.ilsNr = {};
       if (!p.buildingAliases) p.buildingAliases = {};
       if (!p.buildingSchemas) p.buildingSchemas = { ...DEFAULT_BUILDING_SCHEMAS };
+      if (!Array.isArray(p.dienste)) p.dienste = [];
+      if (!p.buildingTypeDienst) p.buildingTypeDienst = {};
       cfg = p; saveConfig(cfg);
       ov.querySelector('#sc-tbl').innerHTML = buildSchemaTable();
       ov.querySelector('#kz-tbl').innerHTML = buildKzTable();
@@ -2365,7 +2476,9 @@
       ov.querySelector('#thw-dfgr-tbl').innerHTML = buildThwDefaultFgrTable();
       ov.querySelector('#balias-tbl').innerHTML = buildBAliasTable();
       ov.querySelector('#ils-tbl').innerHTML = buildILSTable();
-      bindSchemaEvents(ov); bindKzEvents(ov); bindOrgEvents(ov); bindOrgLabelsEvents(ov); bindAliasEvents(ov); bindThwExtEvents(ov); bindThwDefaultFgrEvents(ov); bindBAliasEvents(ov); bindILSEvents(ov);
+      ov.querySelector('#d-tbl').innerHTML = buildDiensteTable();
+      ov.querySelector('#d-bt-tbl').innerHTML = buildBuildingTypeDienstTable();
+      bindSchemaEvents(ov); bindKzEvents(ov); bindOrgEvents(ov); bindOrgLabelsEvents(ov); bindAliasEvents(ov); bindThwExtEvents(ov); bindThwDefaultFgrEvents(ov); bindBAliasEvents(ov); bindILSEvents(ov); bindDiensteEvents(ov); bindBuildingTypeDienstEvents(ov);
       initKzTypSelect(ov); initAliasTypSelect(ov); initILSBuildingSelect(ov);
       fb.innerHTML = '<div class="lss-note lss-note-ok">✓ Import erfolgreich.</div>';
     }
@@ -2613,11 +2726,11 @@
   }
 
   function buildOrgTable() {
-    const dienstOpts = DIENSTE.map(d => `<option value="${d}">${d}</option>`).join('');
+    const dienstOpts = getAllDienste().map(d => `<option value="${d}">${d}</option>`).join('');
     const rows = Object.entries(cfg.org).map(([kw, entry]) => {
       const dienst = entry.dienst || entry.key || '';
       const name = entry.name || '';
-      const opts = DIENSTE.map(d =>
+      const opts = getAllDienste().map(d =>
         `<option value="${d}"${d === dienst ? ' selected' : ''}>${d}</option>`
       ).join('');
       return `<tr data-kw="${esc(kw)}">
@@ -2650,6 +2763,87 @@
           name: r.querySelector('.org-n').value.trim(),
         };
         saveConfig(cfg);
+      });
+    });
+  }
+
+  // ── Dienste-Tab ──────────────────────────────────────────────────────────
+
+  function buildDiensteTable() {
+    const builtIn = DIENST_LIST_BASE.map(name => {
+      const orgDef = DIENST_ORG_DEFAULT[name] ?? null;
+      const isDropdown = name === 'Rettung';
+      return `<tr>
+        <td style="font-weight:600;">${esc(name)}</td>
+        <td style="color:#888;">${isDropdown ? '(Dropdown)' : esc(orgDef ?? '(leer)')}</td>
+        <td style="color:#888;">${isDropdown ? '✓' : '–'}</td>
+        <td><span style="font-size:11px;color:#aaa;">eingebaut</span></td>
+      </tr>`;
+    }).join('');
+    const custom = (cfg.dienste || []).map((d, i) =>
+      `<tr data-idx="${i}">
+        <td><input class="d-name" type="text" value="${esc(d.name)}" style="width:130px;"></td>
+        <td><input class="d-org" type="text" value="${esc(d.orgDefault ?? '')}" placeholder="(leer=kein Prefix)" style="width:140px;"></td>
+        <td style="text-align:center;"><input class="d-dd" type="checkbox"${d.useOrgDropdown ? ' checked' : ''}></td>
+        <td><button class="lss-btn lss-btn-del d-del" style="padding:3px 9px;">✕</button></td>
+      </tr>`
+    ).join('');
+    const empty = !cfg.dienste?.length ? '<tr><td colspan="4" style="color:#888;font-size:12px;">Keine benutzerdefinierten Dienste.</td></tr>' : '';
+    return `<table class="lss-tbl"><thead><tr>
+      <th>Name</th><th>Org-Prefix ({org})</th><th>Org-Dropdown</th><th></th>
+    </tr></thead><tbody>${builtIn}${custom}${empty}</tbody></table>`;
+  }
+
+  function bindDiensteEvents(ov) {
+    ov.querySelectorAll('#d-tbl .d-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.closest('tr').dataset.idx);
+        cfg.dienste.splice(idx, 1);
+        saveConfig(cfg);
+        ov.querySelector('#d-tbl').innerHTML = buildDiensteTable();
+        bindDiensteEvents(ov);
+      });
+    });
+    ov.querySelectorAll('#d-tbl .d-name, #d-tbl .d-org, #d-tbl .d-dd').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const r = inp.closest('tr');
+        const idx = Number(r.dataset.idx);
+        if (idx == null || isNaN(idx)) return;
+        cfg.dienste[idx] = {
+          name: r.querySelector('.d-name').value.trim(),
+          orgDefault: r.querySelector('.d-org').value.trim(),
+          useOrgDropdown: r.querySelector('.d-dd').checked,
+        };
+        saveConfig(cfg);
+      });
+    });
+  }
+
+  function buildBuildingTypeDienstTable() {
+    const entries = Object.entries(cfg.buildingTypeDienst || {});
+    if (!entries.length) return '<p style="color:#888;font-size:12px;">Keine Zuordnungen.</p>';
+    const rows = entries.map(([id, dienst]) => {
+      const standard = BUILDING_TYPE_DIENST[Number(id)] || '—';
+      return `<tr data-id="${esc(id)}">
+        <td style="font-weight:600;">${esc(id)}</td>
+        <td style="color:#888;">${esc(standard)}</td>
+        <td style="font-weight:600;color:#1d5f9e;">${esc(dienst)}</td>
+        <td><button class="lss-btn lss-btn-del d-bt-del" style="padding:3px 9px;">✕</button></td>
+      </tr>`;
+    }).join('');
+    return `<table class="lss-tbl"><thead><tr>
+      <th>Typ-ID</th><th>Standard</th><th>→ Dienst</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  function bindBuildingTypeDienstEvents(ov) {
+    ov.querySelectorAll('#d-bt-tbl .d-bt-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').dataset.id;
+        delete cfg.buildingTypeDienst[id];
+        saveConfig(cfg);
+        ov.querySelector('#d-bt-tbl').innerHTML = buildBuildingTypeDienstTable();
+        bindBuildingTypeDienstEvents(ov);
       });
     });
   }
@@ -2829,7 +3023,7 @@
             <button class="lss-btn lss-btn-del ils-d" style="padding:3px 9px;">✕</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
-            ${['*','Feuerwehr','Rettung','Polizei','THW'].map(d => {
+            ${['*',...getAllDienste()].map(d => {
               const val = typeof name === 'object' ? (name[d] || '') : (d === '*' ? name : '');
               return `<div style="display:flex;flex-direction:column;gap:2px;">
                 <label style="font-size:10px;color:#888;font-weight:600;">${d === '*' ? '* Fallback' : d}</label>
@@ -2842,7 +3036,7 @@
         </div>
         <div class="ils-nr-panel" data-id="${esc(id)}" style="display:none;border-top:1px solid #e2eaf4;">
           <div style="display:flex;border-bottom:1px solid #e2eaf4;background:#f7f9fc;">
-            ${['Feuerwehr','Rettung','Polizei','THW'].map((d,i) =>
+            ${getAllDienste().map((d,i) =>
               `<button class="ils-dienst-tab${i===0?' ils-dienst-tab-active':''}" data-id="${esc(id)}" data-dienst="${d}"
                 style="padding:7px 14px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid ${i===0?'#1d5f9e':'transparent'};color:${i===0?'#1d5f9e':'#556'};">${d}</button>`
             ).join('')}
@@ -2853,7 +3047,7 @@
                 🔄 Automatisch nummerieren
               </button>
             </div>
-            ${['Feuerwehr','Rettung','Polizei','THW'].map((d,i) =>
+            ${getAllDienste().map((d,i) =>
               `<div class="ils-nr-list" data-id="${esc(id)}" data-dienst="${d}" style="display:${i===0?'block':'none'};">${buildILSNrList(id, d)}</div>`
             ).join('')}
           </div>
@@ -2868,7 +3062,7 @@
     // Nach Dienst filtern falls angegeben
     const entries = dienst ? allEntries.filter(([bid]) => {
       const b = cacheBuilding.get(String(bid));
-      return !b || (BUILDING_TYPE_DIENST[b.building_type] || null) === dienst;
+      return !b || getEffectiveDienst(b.building_type) === dienst;
     }) : allEntries;
     if (!entries.length) return '<p style="font-size:12px;color:#888;">Noch keine Nummern vergeben.</p>';
     const rows = entries.map(([bid, nr]) => {
@@ -2966,8 +3160,7 @@
         const allBuildings = await apiFetch('/api/buildings');
         const relevant = (allBuildings || [])
           .filter(b => {
-            const d = BUILDING_TYPE_DIENST[b.building_type] || null;
-            return String(b.leitstelle_building_id) === String(lid) && d === dienst;
+            return String(b.leitstelle_building_id) === String(lid) && getEffectiveDienst(b.building_type) === dienst;
           })
           .sort((a, b) => Number(a.id) - Number(b.id));
 
@@ -2983,7 +3176,7 @@
         // Bestehende Einträge dieses Dienstes entfernen
         for (const bid of Object.keys(cfg.ilsNr?.[lid] || {})) {
           const b = cacheBuilding.get(bid);
-          if (b && (BUILDING_TYPE_DIENST[b.building_type] || null) === dienst) {
+          if (b && getEffectiveDienst(b.building_type) === dienst) {
             delete cfg.ilsNr[lid][bid];
           }
         }
@@ -3004,7 +3197,7 @@
     });
 
     // Nr-Events
-    Object.keys(cfg.ils || {}).forEach(lid => ['Feuerwehr','Rettung','Polizei','THW'].forEach(d => bindILSNrEvents(ov, lid, d)));
+    Object.keys(cfg.ils || {}).forEach(lid => getAllDienste().forEach(d => bindILSNrEvents(ov, lid, d)));
   }
 
   function bindILSNrEvents(ov, lid, dienst) {
@@ -3403,9 +3596,7 @@
     const blText = bl ? (bl + ' · ' + (BUNDESLAENDER[bl] || bl)) : 'Bundesland nicht erkannt';
     // Dienst aus building_type ermitteln (für Org-Feld)
     const building = await getBuilding(buildingId);
-    const bl_dienst = building?.building_type != null
-      ? BUILDING_TYPE_DIENST[building.building_type] || null
-      : null;
+    const bl_dienst = getEffectiveDienst(building?.building_type);
 
     // ── „Alle umbenennen"-Button im Fahrzeuge-Tab ─────────────────────────────
     const vehicleTabPane = doc.getElementById('tab_vehicles') || doc.querySelector('.tab-pane.active');
@@ -3482,11 +3673,11 @@
       let inp;
       if (def.type === 'select') {
         // Nur bei Rettung: Dropdown; sonst: readonly mit festem Wert
-        if (bl_dienst && bl_dienst !== 'Rettung' && bl_dienst in DIENST_ORG_DEFAULT) {
+        if (bl_dienst && !dienstUsesOrgDropdown(bl_dienst)) {
           inp = doc.createElement('input');
           inp.type = 'text';
           inp.readOnly = true;
-          inp.value = DIENST_ORG_DEFAULT[bl_dienst];
+          inp.value = getDienstOrgDefault(bl_dienst) ?? '';
           inp.style.cssText = 'border:1px solid #e0e0e0;border-radius:6px;padding:6px 10px;font-size:13px;width:200px;background:#f5f5f5;color:#888;cursor:not-allowed;';
           inp.title = 'Fest für diesen Diensttyp';
         } else {
@@ -3575,7 +3766,7 @@
         for (const [bid, nr] of Object.entries(existing)) {
           if (bid === String(buildingId)) continue;
           const b = cacheBuilding.get(String(bid));
-          const bDienst = b?.building_type != null ? (BUILDING_TYPE_DIENST[b.building_type] || null) : null;
+          const bDienst = getEffectiveDienst(b?.building_type);
           if (bDienst === bl_dienst) usedNrs.add(Number(nr));
         }
         let next = 1;
@@ -3708,8 +3899,7 @@
       getOrt(buildingId),
     ]);
 
-    const dienst = building?.building_type != null
-      ? BUILDING_TYPE_DIENST[building.building_type] || null : null;
+    const dienst = getEffectiveDienst(building?.building_type);
     const props = buildingProps[buildingId] || {};
     const buildingCap = building?.caption || '';
 
