@@ -149,7 +149,7 @@ Der Loader-Ansatz erlaubt Updates des Core ohne Neuinstallation des Userscripts.
 | `lss_callsign_v4` | Hauptkonfiguration (Schemas, Org, ILS, Dienste …) |
 | `lss_callsign_buildings_v4` | Gebäude-Eigenschaften (Org, Ort, TKZ1 …) |
 | `lss_callsign_vehicles_v1` | Fahrzeug-Eigenschaften (THW-Fachgruppe …) |
-| `lss_callsign_vehicleTypes_v1` | Fahrzeugtyp-Katalog (24h-Cache) |
+| `lss_callsign_vehicleTypes_v1` | Fahrzeugtyp-Katalog (localStorage, 24h-Cache) |
 
 ### Externe APIs
 
@@ -157,7 +157,7 @@ Der Loader-Ansatz erlaubt Updates des Core ohne Neuinstallation des Userscripts.
 |-----|------------|
 | `api.leitstellenspiel.de` | Fahrzeug- und Gebäudedaten |
 | `nominatim.openstreetmap.org` | Koordinaten → Bundesland |
-| `api.lss-manager.de` | Fahrzeugtyp-Katalog |
+| `api.lss-manager.de` | Fahrzeugtyp-Katalog (24h-gecacht) |
 | `googleapis.com` | Google Drive Backup (optional) |
 
 ## Versioning

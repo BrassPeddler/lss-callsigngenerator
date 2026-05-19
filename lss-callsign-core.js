@@ -175,11 +175,12 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.18.0';
+  const CORE_VERSION = '5.18.4';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
   const VEHICLE_TYPES_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 Stunden
+
   const GDRIVE_CLIENT_ID_KEY = 'lss_gdrive_client_id';
   const GDRIVE_TOKEN_KEY = 'lss_gdrive_token';
   const GDRIVE_FILE_NAME = 'lss-callsign-backup.json';
@@ -373,7 +374,6 @@
       const raw = localStorage.getItem(STORE_VEHICLE_TYPES_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      // Prüfe Alter
       if (parsed._ts && (Date.now() - parsed._ts) < VEHICLE_TYPES_MAX_AGE_MS) {
         return parsed.map || null;
       }
@@ -389,58 +389,45 @@
 
   function getVehicleTypeCatalog() {
     if (_vehicleTypeCache) return _vehicleTypeCache;
-    // Eigener Cache
-    const own = loadVehicleTypeCache();
-    if (own) { _vehicleTypeCache = own; return own; }
-    // Fallback: rv_vehicleTypeCatalogMap vom anderen Script
-    try {
-      const rv = getVehicleTypeCatalog();
-      if (Object.keys(rv).length) return rv;
-    } catch (_) {}
+    const cached = loadVehicleTypeCache();
+    if (cached) { _vehicleTypeCache = cached; return cached; }
     return {};
   }
 
   async function fetchAndCacheVehicleTypes() {
-    console.log('[LSS-VT] Lade Fahrzeugtypen von API…');
     return new Promise(resolve => {
       GM_xmlhttpRequest({
         method: 'GET',
         url: VEHICLE_TYPES_API_URL,
         headers: { 'Accept': 'application/json' },
         onload: r => {
-          console.log('[LSS-VT] API Status:', r.status, 'Länge:', r.responseText?.length);
           try {
             const data = JSON.parse(r.responseText);
             const map = {};
             if (Array.isArray(data)) {
               data.forEach(v => {
-                if (v?.id !== undefined) {
-                  map[String(v.id)] = v.caption || v.name || String(v.id);
-                }
+                if (v?.id !== undefined) map[String(v.id)] = v.caption || v.name || String(v.id);
               });
             } else if (typeof data === 'object') {
               Object.entries(data).forEach(([k, v]) => {
                 map[String(k)] = typeof v === 'string' ? v : (v?.caption || v?.name || k);
               });
             }
-            console.log('[LSS-VT] Einträge:', Object.keys(map).length);
             if (Object.keys(map).length) {
               _vehicleTypeCache = map;
               saveVehicleTypeCache(map);
-              console.log('[LSS-VT] Cache gespeichert.');
             }
             resolve(map);
-          } catch (e) { console.error('[LSS-VT] Parse Fehler:', e); resolve({}); }
+          } catch (e) { resolve({}); }
         },
-        onerror: e => { console.error('[LSS-VT] Netzwerkfehler:', e); resolve({}); },
+        onerror: () => resolve({}),
       });
     });
   }
 
   async function ensureVehicleTypes() {
-    console.log('[LSS-VT] ensureVehicleTypes aufgerufen');
     const cached = loadVehicleTypeCache();
-    if (cached) { _vehicleTypeCache = cached; console.log('[LSS-VT] Cache geladen'); return; }
+    if (cached) { _vehicleTypeCache = cached; return; }
     await fetchAndCacheVehicleTypes();
   }
 
