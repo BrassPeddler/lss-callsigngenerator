@@ -160,16 +160,6 @@ Der Loader-Ansatz erlaubt Updates des Core ohne Neuinstallation des Userscripts.
 | `api.lss-manager.de` | Fahrzeugtyp-Katalog (24h-gecacht) |
 | `googleapis.com` | Google Drive Backup (optional) |
 
-## Versioning
-
-Das Projekt folgt [Semantic Versioning](https://semver.org/):
-
-- **MAJOR**: Inkompatible Änderungen (z.B. Config-Format-Bruch)
-- **MINOR**: Neue Features, rückwärtskompatibel
-- **PATCH**: Bugfixes
-
-Die Loader-Version (`lss-callsign-loader.user.js`) und die Core-Version (`CORE_VERSION` in `lss-callsign-core.js`) werden unabhängig versioniert.
-
 ## Lizenz
 
 MIT
