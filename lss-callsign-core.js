@@ -168,6 +168,7 @@
     26: 'Rettung', // Seenotrettungswache
     27: 'Rettung', // Schule für Seefahrt und Seenotrettung
     28: 'Rettung', // Hubschrauberstation (Seenotrettung)
+    29: 'Polizei', // Autobahn-Polizei
   };
 
 
@@ -175,7 +176,7 @@
   // PERSISTENZ
   // ═══════════════════════════════════════════════════════════════════════════
 
-  const CORE_VERSION = '5.18.4';
+  const CORE_VERSION = '5.18.5';
   const STORE_KEY = 'lss_callsign_v4';
   const STORE_VEHICLE_TYPES_KEY = 'lss_callsign_vehicleTypes_v1';
   const VEHICLE_TYPES_API_URL = 'https://api.lss-manager.de/de_DE/vehicles';
